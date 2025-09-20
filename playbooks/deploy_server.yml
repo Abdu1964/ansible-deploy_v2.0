@@ -50,13 +50,13 @@
 #   tags: UI_Remote
 #   roles:
 #     - UI
-# # deploy_custom_atomspace 
-# - name: Custom Atomspace builder_Remote
-#   hosts: Custom_Atomspace_builder_Remote
-#   tags: Custom_Atomspace_builder_Remote
-#   become: true
-#   roles:
-#     - Custom_Atomspace_builder
+# deploy_custom_atomspace 
+- name: Custom Atomspace builder_Remote
+  hosts: Custom_Atomspace_builder_Remote
+  tags: Custom_Atomspace_builder_Remote
+  become: true
+  roles:
+    - Custom_Atomspace_builder
   
 #   # deploy_annotation 
 # - name: Deploy Annotation Service
