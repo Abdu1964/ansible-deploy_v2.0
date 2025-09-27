@@ -74,6 +74,16 @@
 #   roles:
 #     - MORK
 
+  # deploy_Hypothesis
+- name: Deploy Hypothesis Service
+  hosts: Hypothesis_Remote
+  tags: Hypothesis_Remote
+  become: no
+  tasks:
+    - include_role:
+        name: Hypothesis
+        tasks_from: staging-production-deploy.yml
+
 # Setup shared Docker network for all local services
 - name: make the same network for all docker services
   hosts: local_network

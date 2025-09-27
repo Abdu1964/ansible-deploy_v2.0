@@ -1,0 +1,96 @@
+# templates/docker-compose.production.yml  
+version: '3.8'
+services:
+  mongo:
+    image: mongo:latest
+    ports:
+      - "270177:270177"  
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app_network
+
+  prolog-service:
+    image: abdum1964/hypothesis-generation-prolog:latest
+    ports:
+      - "42422:42422"  
+    volumes:
+      - ./pl:/app/pl
+      - /mnt/hdd_1/tesnim/version1/prolog_out_v2:/mnt/prolog_out_v2
+      - /mnt/hdd_1/tesnim/version1/prolog_out_v3:/mnt/prolog_out_v3
+    networks:
+      - app_network
+
+  flask-app:
+    image: abdum1964/hypothesis-generation-flask:latest
+    ports:
+      - "50000:50000"   
+    environment:
+      - FLASK_ENV=production
+      - PREFECT_API_URL=http://prefect-service:42000/api
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - /mnt/hdd_1/rediet/hypothesis-generation-demo/data:/app/data/external_data  
+    depends_on:
+      - mongo
+      - prolog-service
+      - prefect-service
+    command: >
+      sh -c "
+      python main.py --ensembl-hgnc-map data/ensembl_to_hgnc.pkl --hgnc-ensembl-map data/hgnc_to_ensembl.pkl \
+      --go-map data/go_map.pkl --swipl-host prolog-service --swipl-port 42422 
+      "
+    networks:
+      - app_network
+
+  prefect-service:
+    image: abdum1964/hypothesis-generation-prefect:latest
+    ports:
+      - "42000:42000"   
+    volumes:
+      - prefect-data:/root/.prefect 
+    environment:
+      - PREFECT_API_URL=http://localhost:42000/api
+    env_file:
+      - .env
+    command: > 
+      sh -c "prefect server start --host 0.0.0.0"
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:42000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  prefect-deployment:
+    image: abdum1964/hypothesis-generation-prefect-deployment:latest
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    command: >
+      sh -c "
+      python deployments.py --ensembl-hgnc-map /app/data/ensembl_to_hgnc.pkl 
+      --hgnc-ensembl-map /app/data/hgnc_to_ensembl.pkl 
+      --go-map /app/data/go_map.pkl 
+      --swipl-host prolog-service 
+      --swipl-port 42422
+      "
+    environment:
+      - PREFECT_API_URL=http://prefect-service:42000/api
+    depends_on:
+      prefect-service:
+        condition: service_healthy
+    networks:
+      - app_network
+
+volumes:
+  mongo-data:
+  prefect-data:
+
+networks:
+  app_network:
+    driver: bridge
